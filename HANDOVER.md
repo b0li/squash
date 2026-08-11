@@ -1,11 +1,34 @@
-# WebP Converter – Handover
+# Squash – Handover
 
 ## Projekt
-- **Lokaler Pfad:** `/Users/lakestudio/localhost/claude/apps/webp-converter/`
-- **Repo:** https://github.com/b0li/webp-converter
-- **Live:** https://b0li.github.io/webp-converter/
+- **Lokaler Pfad:** `/Users/lakestudio/localhost/claude/apps/squash/`
+- **Repo:** https://github.com/b0li/squash
+- **Live:** https://b0li.github.io/squash/
 - **Stack:** Single `index.html` – Vanilla JS, kein Build-Step
 - **CDNs:** JSZip 3.10.1, heic2any 0.0.4 (beide über cdnjs/jsdelivr)
+- **Herkunft:** Weiterentwicklung des WebP-Converters (`../webp-converter/`) – gleiche Basis, erweitert um freie Output-Format-Wahl.
+
+---
+
+## Was Squash vom WebP-Converter unterscheidet
+
+Der WebP-Converter konvertiert **immer** nach WebP. Squash lässt das **Zielformat frei wählen**: WebP, JPEG, PNG, AVIF. Alles andere (Drag & Drop, Breiten-Resize, Qualitäts-Slider, lokal ohne Upload, Design) ist identisch.
+
+Drei neue Mechaniken:
+
+1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
+2. **AVIF-Feature-Detection** (`detectAvifSupport()`): Beim Init encodiert ein 2×2-Canvas testweise nach `image/avif`. Kommt kein `image/avif`-Blob zurück (Browser kann AVIF nicht encodieren), wird die AVIF-Option per `.remove()` entfernt. → Auf `https://` in Chrome sichtbar, auf `file://` bzw. in Browsern ohne AVIF-Encoder ausgeblendet. Kein Bug, gewolltes Verhalten.
+3. **Qualität an Format gekoppelt** (`applyFormatUiState()`): Bei verlustfreiem Format (PNG, `data-lossy="0"`) wird der Slider `disabled` + Label/Value bekommen `.is-disabled` (Opacity 0.4). Bei lossy aktiv.
+
+### JPEG-Sonderfall
+JPEG hat keinen Alpha-Kanal. In `processImageBlob()` wird bei `mime === 'image/jpeg'` **vor** `drawImage` der Canvas weiß gefüllt (`ctx.fillStyle = '#ffffff'; ctx.fillRect(...)`), sonst würde Transparenz schwarz. WebP/PNG/AVIF behalten Alpha.
+
+### Encoding-Call
+```javascript
+const encodeQuality = format.lossy ? quality : undefined; // PNG ignoriert Quality
+canvas.toBlob( cb, format.mime, encodeQuality );
+```
+Output-Name: `originalName.replace( /\.[^.]+$/, '' ) + '.' + format.ext`. Jede Datei im `files`-Array trägt eigene `ext`/`name`, daher funktionieren gemischte Format-Batches (User wechselt Selektor zwischen Drops) und ZIP automatisch.
 
 ---
 
@@ -36,16 +59,6 @@
 - **h1:** `DM Serif Display`, 2rem, weight 400, color `var(--accent)`
 - **Body:** `DM Sans`, system-ui Fallback
 
-### Typografie-Skala
-| Element | Font-Size | Weight | Color |
-|---|---|---|---|
-| h1 | 2rem | 400 (Serif) | --accent |
-| Subtitle | 0.9rem | 400 | --text-dim |
-| Label | 0.85rem | 400 | --text-dim |
-| Body / Name | 0.9rem | 600 | --text |
-| Original-Name | 0.75rem | 400 | --text-dim |
-| Meta / Badge | 0.75rem | 400/600 | --text-dim |
-
 ### Body
 ```css
 body {
@@ -61,36 +74,38 @@ body {
 
 ## UI-Komponenten
 
-### Surface-Karte
+### Controls-Leiste
+Drei `.control-group` (flex, gap 10px) in `.controls` (max-width 720px, flex, gap 20px, wrap):
+1. **Format:** Label + `<select>`
+2. **Qualität:** Label + Range-Slider (`flex:1`) + Value – `.control-group--quality` ist `flex:1`
+3. **Breite:** Label + Number-Input (px, optional)
+
+### Select / Number Input (gleiche Optik)
 ```css
-background: var( --surface );
-border-radius: var( --radius );
-border: 1px solid var( --border );
-padding: 14px 16px;
+input[type="number"], select {
+    background: var( --surface-2 );
+    border: 1px solid var( --border );
+    border-radius: 6px;
+    color: var( --text );
+    font-size: 0.9rem;
+    padding: 5px 8px;
+}
+input[type="number"]:focus, select:focus { border-color: var( --accent ); }
+select option { background: var( --surface-2 ); color: var( --text ); }
 ```
+
+### Range Slider
+`height 4px`, `background var(--border)`, Thumb 18×18px, `border-radius 50%`, `background var(--accent)`. `:disabled` → Opacity 0.4.
 
 ### Buttons
 ```css
 .btn { padding: 8px 18px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
-.btn:not(:disabled):hover { opacity: 0.85; }
-.btn:disabled { opacity: 0.4; cursor: default; }
-
 .btn--accent  { background: var( --accent ); color: #1a1d23; }
 .btn--ghost   { background: var( --surface-2 ); color: var( --text-dim ); border: 1px solid var( --border ); }
 .btn--danger  { background: transparent; color: var( --red ); border: 1px solid var( --red ); }
-.btn--remove  { background: transparent; border: none; color: var( --text-dim ); font-size: 1rem; }
+.btn--remove  { background: transparent; border: none; color: var( --text-dim ); }
 .btn--remove:hover { color: var( --red ); }
-
-/* Download-Link als Button */
-.btn--download {
-    background: var( --accent );
-    color: #1a1d23;
-    font-size: 0.82rem;
-    padding: 7px 16px;
-    border-radius: 6px;
-    font-weight: 600;
-    text-decoration: none;
-}
+.btn--download { background: var( --accent ); color: #1a1d23; font-size: 0.82rem; padding: 7px 16px; text-decoration: none; }
 ```
 
 ### Drop-Zone
@@ -98,115 +113,47 @@ padding: 14px 16px;
 border: 2px dashed var( --border );
 border-radius: var( --radius );
 background: var( --surface );
-/* Drag-over: */
-border-color: var( --accent );
-background: var( --accent-dim );
+/* .drag-over: */ border-color: var( --accent ); background: var( --accent-dim );
 ```
 
-### Controls-Leiste (Slider + Number Input)
-```css
-/* Wrapper */
-max-width: 720px; display: flex; align-items: center; gap: 20px;
-background: var( --surface ); border-radius: var( --radius ); padding: 20px 24px;
+### File Item
+Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
+- **Thumbnail** (52×52px) mit Hover-Preview-Tooltip (`.file-item__preview`, `position:absolute`, `bottom: calc(100% + 8px)`, `max-width: min(480px, 80vw)`)
+- **Info:** Original-Name (0.75rem, --text-dim) → Output-Name (0.9rem, 600) → Meta (Größen, %, Auflösung)
+- **Actions:** `.file-type-badge` (dynamisch `.webp`/`.jpg`/`.png`/`.avif`) + Download-Button + ✕
 
-/* Range Slider */
-input[type="range"] { -webkit-appearance: none; height: 4px; background: var( --border ); border-radius: 2px; }
-/* Thumb: 18×18px, border-radius 50%, background var(--accent) */
-
-/* Number Input */
-input[type="number"] {
-    width: 80px; background: var( --surface-2 );
-    border: 1px solid var( --border ); border-radius: 6px;
-    color: var( --text ); font-size: 0.9rem; padding: 5px 8px;
-}
-input[type="number"]:focus { border-color: var( --accent ); }
-```
-
-### File Item (Dateiliste)
-Grid: `52px 1fr auto` · gap 14px
-
-```css
-.file-item {
-    background: var( --surface );
-    border-radius: var( --radius );
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: 52px 1fr auto;
-    align-items: center;
-    gap: 14px;
-    border: 1px solid var( --border );
-}
-```
-
-Aufbau pro Zeile:
-- **Thumbnail** (52×52px, border-radius 6px) mit Hover-Preview-Tooltip (siehe unten)
-- **Info:** Original-Dateiname (0.75rem, --text-dim) → fetter Output-Name → Meta-Zeile (Größen, %, Auflösung)
-- **Actions:** `.file-type-badge` (`.webp`) + Download-Button + ✕-Button
-
-### Thumbnail Hover-Preview
-```css
-.file-item__thumb { position: relative; overflow: visible; }
-
-.file-item__preview {
-    position: absolute;
-    z-index: 30;
-    left: 0;
-    bottom: calc( 100% + 8px );
-    display: none;
-    padding: 4px;
-    background: var( --surface-2 );
-    border: 1px solid var( --border );
-    border-radius: 8px;
-    box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.5 );
-    pointer-events: none;
-}
-.file-item__thumb:hover .file-item__preview { display: block; }
-.file-item__preview img { max-width: min( 480px, 80vw ); max-height: 70vh; border-radius: 4px; }
-```
-
-### Bottom Bar (Anzahl + Ersparnis + Buttons)
-```css
-.bottom-bar {
-    max-width: 720px;
-    margin: 16px auto 0;
-    display: none; /* → display: flex wenn Dateien vorhanden */
-    align-items: center;
-    gap: 10px;
-}
-/* .bottom-bar__count: flex: 1, 0.85rem, --text-dim */
-/* .bottom-bar__saving: 0.85rem, --accent, font-weight 600 */
-```
-
-Inhalt: `X Dateien` · `68 KB → 23 KB · −65%` · Button „Leeren" · Button „Alle als ZIP"
-
-### Status-Farben
-```css
-.status--processing { color: var( --accent ); }
-.status--done       { color: var( --accent ); }
-.status--error      { color: var( --red ); }
-```
-
-### Progress Bar
-```css
-height: 3px; background: var( --border ); border-radius: 2px;
-/* Fill: background: var( --accent ) */
-```
+### Bottom Bar
+`X Dateien` · `68 KB → 23 KB · −65%` (ab 2 Dateien) · Button „Leeren" · Button „Alle als ZIP" (→ `squash.zip`).
 
 ---
 
 ## Features
 
 - Drag & Drop + Click-to-select, mehrere Dateien gleichzeitig
-- Unterstützte Formate: JPG, PNG, GIF, AVIF, BMP, HEIC, HEIF, TIFF, SVG, ICO, WebP
+- **Input-Formate:** JPG, PNG, GIF, AVIF, BMP, HEIC, HEIF, TIFF, SVG, ICO, WebP
   - HEIC/HEIF via `heic2any` → PNG → Canvas
   - Alle anderen via `FileReader.readAsArrayBuffer` → `Image` → Canvas
-- Qualitäts-Slider (1–100, Default: 70)
-- Breite-Input (px, optional) – skaliert nur herunter, nie hoch; Hinweis „Nicht vergrößert"
-- `canvas.toBlob('image/webp', quality)` – alles lokal, kein Upload
-- Dateiliste: Thumbnail + Hover-Preview, Original-Name, WebP-Name, Größenvergleich, Auflösung
-- Einzel-Download als `.webp` + Batch-Download als ZIP
+- **Output-Formate:** WebP, JPEG, PNG, AVIF (AVIF nur bei Encoder-Support)
+- Qualitäts-Slider (1–100, Default 70) – bei PNG ausgegraut
+- Breite-Input (px, optional) – nur Downscale, nie Upscale; Hinweis „Nicht vergrößert"
+- Dateiliste: Thumbnail + Hover-Preview, Original-Name, Output-Name, Größenvergleich, Auflösung
+- Einzel-Download + Batch-Download als ZIP (`squash.zip`)
 - Bottom Bar: Dateianzahl + Gesamtersparnis (ab 2 Dateien)
 - Fehlerbehandlung: Nicht-Bild-Dateien → Fehlereintrag in der Liste
+
+---
+
+## Zentrale JS-Funktionen
+
+| Funktion | Aufgabe |
+|---|---|
+| `getSelectedFormat()` | liest `{ mime, ext, lossy }` aus dem Selektor |
+| `applyFormatUiState()` | graut Slider bei lossless (PNG) aus |
+| `detectAvifSupport()` | entfernt AVIF-Option bei fehlendem Encoder |
+| `handleFiles()` | friert quality/width/format beim Drop ein, dispatcht pro Datei |
+| `convertImage()` | HEIC-Weiche, sonst FileReader → `processImageBlob` |
+| `processImageBlob()` | Resize + JPEG-Weiß-Fill + `toBlob` |
+| `markDone()` | rendert Thumbnail, Meta, Badge, Download-Link |
 
 ---
 
@@ -224,10 +171,12 @@ height: 3px; background: var( --border ); border-radius: 2px;
 
 ## Deployment
 
+GitHub Pages aktiv (main branch, root `/`, HTTPS erzwungen).
+
 ```bash
-# GitHub Pages aktiv (main branch, root /)
+cd /Users/lakestudio/localhost/claude/apps/squash
 git add index.html
 git commit -m "..."
 git push
-# → live auf https://b0li.github.io/webp-converter/
+# → live auf https://b0li.github.io/squash/
 ```
