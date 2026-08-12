@@ -425,13 +425,19 @@
 			color: var( --red );
 		}
 
+		.file-item__rotate {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+
 		.btn--rotate {
 			background: transparent;
 			border: none;
-			color: var( --text-dim );
-			font-size: 1.05rem;
+			color: var( --text );
+			font-size: 2rem;
 			cursor: pointer;
-			padding: 4px 2px;
+			padding: 0 4px;
 			line-height: 1;
 			transition: color 0.15s;
 		}
@@ -930,8 +936,10 @@
 				`;
 
 				item.querySelector( '.file-item__actions' ).innerHTML = `
-					<button class="btn--rotate" aria-label="Nach links drehen" title="90° nach links" data-rotate="-90">↺</button>
-					<button class="btn--rotate" aria-label="Nach rechts drehen" title="90° nach rechts" data-rotate="90">↻</button>
+					<div class="file-item__rotate">
+						<button class="btn--rotate" aria-label="Nach links drehen" title="90° nach links" data-rotate="-90">↺</button>
+						<button class="btn--rotate" aria-label="Nach rechts drehen" title="90° nach rechts" data-rotate="90">↻</button>
+					</div>
 					<span class="file-type-badge">.${ escapeHtml( job.format.ext ) }</span>
 					<a
 						href="${ url }"
