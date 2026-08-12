@@ -468,6 +468,27 @@
 			border-color: var( --accent );
 		}
 
+		.file-item__format {
+			background: var( --surface-2 );
+			border: 1px solid var( --border );
+			border-radius: 6px;
+			color: var( --text );
+			font-family: inherit;
+			font-size: 0.82rem;
+			padding: 5px 7px;
+			outline: none;
+			cursor: pointer;
+		}
+
+		.file-item__format option {
+			background: var( --surface-2 );
+			color: var( --text );
+		}
+
+		.file-item__format:focus {
+			border-color: var( --accent );
+		}
+
 		/* Bottom bar */
 
 		.bottom-bar {
@@ -609,13 +630,34 @@
 
 			function getSelectedFormat() {
 
-				const opt = formatSelect.options[ formatSelect.selectedIndex ];
+				return formatFromOption( formatSelect.options[ formatSelect.selectedIndex ] );
+			}
+
+			function formatFromOption( opt ) {
 
 				return {
 					mime: opt.value,
 					ext: opt.dataset.ext,
 					lossy: opt.dataset.lossy === '1'
 				};
+			}
+
+			// Look up a format by mime from the (feature-detected) global options
+
+			function getFormatByMime( mime ) {
+
+				const opt = formatSelect.querySelector( `option[value="${ mime }"]` );
+				return opt ? formatFromOption( opt ) : null;
+			}
+
+			// Build <option> markup for a per-file format select, current one preselected
+
+			function formatOptionsHtml( selectedMime ) {
+
+				return Array.from( formatSelect.options ).map( ( opt ) => {
+					const sel = opt.value === selectedMime ? ' selected' : '';
+					return `<option value="${ opt.value }"${ sel }>${ opt.textContent }</option>`;
+				}).join( '' );
 			}
 
 			// Gray out quality controls for lossless formats (PNG)
@@ -884,6 +926,33 @@
 
 			}
 
+			function reformatItem( id, mime ) {
+
+				const rec = files.find( f => f.id === id );
+				if ( ! rec ) return;
+
+				const format = getFormatByMime( mime );
+				if ( ! format || format.mime === rec.format.mime ) return;
+
+				const item = document.querySelector( `.file-item[data-id="${ id }"]` );
+				if ( ! item ) return;
+
+				renderPending( item, rec.originalFile, 'Konvertiere…' );
+				item.classList.remove( 'file-item--done' );
+
+				const job = {
+					id,
+					file: rec.originalFile,
+					quality: rec.quality,
+					targetWidth: rec.targetWidth,
+					format,
+					rotation: rec.rotation
+				};
+
+				convertJob( job, item );
+
+			}
+
 			// DOM helpers
 
 			function renderPending( item, file, label ) {
@@ -999,7 +1068,7 @@
 						title="Breite für dieses Bild (leer = Original)"
 						aria-label="Individuelle Breite für dieses Bild"
 					>
-					<span class="file-type-badge">.${ escapeHtml( job.format.ext ) }</span>
+					<select class="file-item__format" title="Ausgabeformat für dieses Bild" aria-label="Ausgabeformat für dieses Bild">${ formatOptionsHtml( job.format.mime ) }</select>
 					<a
 						href="${ url }"
 						download="${ escapeHtml( outName ) }"
@@ -1020,6 +1089,9 @@
 				widthField.addEventListener( 'keydown', ( e ) => {
 					if ( e.key === 'Enter' ) widthField.blur();
 				});
+
+				const formatField = item.querySelector( '.file-item__format' );
+				formatField.addEventListener( 'change', () => reformatItem( id, formatField.value ) );
 
 				item.querySelector( '.btn--remove' ).addEventListener( 'click', () => removeItem( id ) );
 				item.classList.add( 'file-item--done' );
