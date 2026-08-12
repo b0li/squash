@@ -19,7 +19,8 @@ Vier neue Mechaniken:
 1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
 2. **AVIF-Feature-Detection** (`detectAvifSupport()`): Beim Init encodiert ein 2×2-Canvas testweise nach `image/avif`. Kommt kein `image/avif`-Blob zurück (Browser kann AVIF nicht encodieren), wird die AVIF-Option per `.remove()` entfernt. → Auf `https://` in Chrome sichtbar, auf `file://` bzw. in Browsern ohne AVIF-Encoder ausgeblendet. Kein Bug, gewolltes Verhalten.
 3. **Qualität an Format gekoppelt** (`applyFormatUiState()`): Bei verlustfreiem Format (PNG, `data-lossy="0"`) wird der Slider `disabled` + Label/Value bekommen `.is-disabled` (Opacity 0.4). Bei lossy aktiv.
-4. **Rotation pro Datei** (`rotateItem()`): Zwei `.btn--rotate`-Buttons (↺ / ↻) pro Zeile drehen in 90°-Schritten. Kein Rotieren des Output-Blobs, sondern **Re-Encode aus dem Original** mit demselben `job` (Format/Qualität/Breite) + neuer `rotation`. Deshalb hält jeder `files`-Record `originalFile` + die Encode-Settings + `rotation`. Bei 90°/270° werden Canvas-Breite/-Höhe getauscht; gedreht wird um das Canvas-Zentrum (`translate` → `rotate` → `drawImage` mit negativem Offset). Der Re-Encode ersetzt den alten `files`-Eintrag (per `id`, alte `url` wird revoked) → kein Duplikat.
+4. **Rotation pro Datei** (`rotateItem()`): Zwei `.btn--rotate`-Buttons (↺ / ↻, vertikal gestapelt in `.file-item__rotate`) drehen in 90°-Schritten. Kein Rotieren des Output-Blobs, sondern **Re-Encode aus dem Original** mit demselben `job` (Format/Qualität/Breite) + neuer `rotation`. Deshalb hält jeder `files`-Record `originalFile` + die Encode-Settings + `rotation`. Bei 90°/270° werden Canvas-Breite/-Höhe getauscht; gedreht wird um das Canvas-Zentrum (`translate` → `rotate` → `drawImage` mit negativem Offset). Der Re-Encode ersetzt den alten `files`-Eintrag (per `id`, alte `url` wird revoked) → kein Duplikat.
+5. **Individuelle Breite pro Datei** (`resizeItem()`): `.file-item__width`-Zahlenfeld pro Zeile. `change`/Enter → Re-Encode aus dem Original mit neuer `targetWidth` (Format/Qualität/Rotation bleiben). Leer = Originalbreite. Nutzt denselben Ersetz-Mechanismus wie `rotateItem()`. Das globale Breite-Feld ist nur der Default beim Drop.
 
 ### JPEG-Sonderfall
 JPEG hat keinen Alpha-Kanal. In `processImageBlob()` wird bei `mime === 'image/jpeg'` **vor** `drawImage` der Canvas weiß gefüllt (`ctx.fillStyle = '#ffffff'; ctx.fillRect(...)`), sonst würde Transparenz schwarz. WebP/PNG/AVIF behalten Alpha.
@@ -155,6 +156,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 | `convertJob()` | HEIC-Weiche, sonst FileReader → `processImageBlob` |
 | `processImageBlob()` | Resize + Rotation + JPEG-Weiß-Fill + `toBlob`, ersetzt alten Record |
 | `rotateItem()` | dreht ±90°, re-encodet aus `originalFile` mit gleichen Settings |
+| `resizeItem()` | setzt individuelle Breite, re-encodet aus `originalFile` |
 | `renderPending()` | rendert Pending-/„Drehe…"-Zustand einer Zeile |
 | `markDone()` | rendert Thumbnail, Meta, Rotate-/Badge-/Download-Actions |
 
