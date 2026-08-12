@@ -425,6 +425,21 @@
 			color: var( --red );
 		}
 
+		.btn--rotate {
+			background: transparent;
+			border: none;
+			color: var( --text-dim );
+			font-size: 1.05rem;
+			cursor: pointer;
+			padding: 4px 2px;
+			line-height: 1;
+			transition: color 0.15s;
+		}
+
+		.btn--rotate:hover {
+			color: var( --accent );
+		}
+
 		/* Bottom bar */
 
 		.bottom-bar {
@@ -658,22 +673,24 @@
 
 					const id = Date.now() + Math.random();
 					const item = addPendingItem( file, id );
+					const job = { id, file, quality, targetWidth, format, rotation: 0 };
 
-					convertImage( file, quality, targetWidth, format, id, item );
+					convertJob( job, item );
 				});
 
 				updateActions();
 
 			}
 
-			function convertImage( file, quality, targetWidth, format, id, item ) {
+			function convertJob( job, item ) {
 
+				const file = job.file;
 				const isHeic = /\.(heic|heif)$/i.test( file.name ) || file.type === 'image/heic' || file.type === 'image/heif';
 
 				if ( isHeic ) {
 					heic2any({ blob: file, toType: 'image/png' })
 						.then( ( convertedBlob ) => {
-							processImageBlob( convertedBlob, file, quality, targetWidth, format, id, item );
+							processImageBlob( convertedBlob, job, item );
 						})
 						.catch( () => markError( item, 'HEIC konnte nicht gelesen werden' ) );
 					return;
@@ -682,7 +699,7 @@
 				const reader = new FileReader();
 
 				reader.onload = ( e ) => {
-					processImageBlob( new Blob( [e.target.result], { type: file.type } ), file, quality, targetWidth, format, id, item );
+					processImageBlob( new Blob( [e.target.result], { type: file.type } ), job, item );
 				};
 
 				reader.onerror = () => markError( item, 'Datei konnte nicht gelesen werden' );
@@ -690,7 +707,7 @@
 
 			}
 
-			function processImageBlob( sourceBlob, originalFile, quality, targetWidth, format, id, item ) {
+			function processImageBlob( sourceBlob, job, item ) {
 
 				const blobUrl = URL.createObjectURL( sourceBlob );
 				const img = new Image();
@@ -706,30 +723,38 @@
 					let outH = origH;
 					let notUpscaled = false;
 
-					if ( targetWidth > 0 ) {
-						if ( targetWidth < origW ) {
-							outW = targetWidth;
-							outH = Math.round( origH * ( targetWidth / origW ) );
+					if ( job.targetWidth > 0 ) {
+						if ( job.targetWidth < origW ) {
+							outW = job.targetWidth;
+							outH = Math.round( origH * ( job.targetWidth / origW ) );
 						} else {
 							notUpscaled = true;
 						}
 					}
 
+					// Swap output dimensions for 90°/270° rotation
+					const swapped = job.rotation === 90 || job.rotation === 270;
+					const finalW = swapped ? outH : outW;
+					const finalH = swapped ? outW : outH;
+
 					const canvas = document.createElement( 'canvas' );
-					canvas.width = outW;
-					canvas.height = outH;
+					canvas.width = finalW;
+					canvas.height = finalH;
 
 					const ctx = canvas.getContext( '2d' );
 
 					// JPEG has no alpha channel – fill transparent areas white instead of black
-					if ( format.mime === 'image/jpeg' ) {
+					if ( job.format.mime === 'image/jpeg' ) {
 						ctx.fillStyle = '#ffffff';
-						ctx.fillRect( 0, 0, outW, outH );
+						ctx.fillRect( 0, 0, finalW, finalH );
 					}
 
-					ctx.drawImage( img, 0, 0, outW, outH );
+					// Rotate around the canvas center, then draw the scaled image
+					ctx.translate( finalW / 2, finalH / 2 );
+					ctx.rotate( job.rotation * Math.PI / 180 );
+					ctx.drawImage( img, -outW / 2, -outH / 2, outW, outH );
 
-					const encodeQuality = format.lossy ? quality : undefined;
+					const encodeQuality = job.format.lossy ? job.quality : undefined;
 
 					canvas.toBlob( ( blob ) => {
 
@@ -738,15 +763,34 @@
 							return;
 						}
 
-						const outName = originalFile.name.replace( /\.[^.]+$/, '' ) + '.' + format.ext;
+						const outName = job.file.name.replace( /\.[^.]+$/, '' ) + '.' + job.format.ext;
 						const url = URL.createObjectURL( blob );
 
-						files.push({ id, name: outName, ext: format.ext, blob, url, originalSize: originalFile.size });
+						// Replace any previous encode of this item (e.g. after rotation)
+						const existingIdx = files.findIndex( f => f.id === job.id );
+						if ( existingIdx !== -1 ) {
+							URL.revokeObjectURL( files[existingIdx].url );
+							files.splice( existingIdx, 1 );
+						}
 
-						markDone( item, originalFile, blob, url, outName, format, origW, origH, outW, outH, notUpscaled );
+						files.push({
+							id: job.id,
+							originalFile: job.file,
+							quality: job.quality,
+							targetWidth: job.targetWidth,
+							format: job.format,
+							rotation: job.rotation,
+							name: outName,
+							ext: job.format.ext,
+							blob,
+							url,
+							originalSize: job.file.size
+						});
+
+						markDone( item, job, blob, url, outName, origW, origH, finalW, finalH, notUpscaled );
 						updateSummary();
 
-					}, format.mime, encodeQuality );
+					}, job.format.mime, encodeQuality );
 
 				};
 
@@ -759,7 +803,53 @@
 
 			}
 
+			function rotateItem( id, delta ) {
+
+				const rec = files.find( f => f.id === id );
+				if ( ! rec ) return;
+
+				const item = document.querySelector( `.file-item[data-id="${ id }"]` );
+				if ( ! item ) return;
+
+				const rotation = ( ( rec.rotation + delta ) % 360 + 360 ) % 360;
+
+				renderPending( item, rec.originalFile, 'Drehe…' );
+				item.classList.remove( 'file-item--done' );
+
+				const job = {
+					id,
+					file: rec.originalFile,
+					quality: rec.quality,
+					targetWidth: rec.targetWidth,
+					format: rec.format,
+					rotation
+				};
+
+				convertJob( job, item );
+
+			}
+
 			// DOM helpers
+
+			function renderPending( item, file, label ) {
+
+				item.innerHTML = `
+					<div class="file-item__thumb" aria-hidden="true">…</div>
+					<div class="file-item__info">
+						<div class="file-item__original">${ escapeHtml( file.name ) }</div>
+						<div class="file-item__name">${ label }</div>
+						<div class="file-item__meta">${ formatBytes( file.size ) }
+							<div class="progress-bar" style="width:80px"><div class="progress-bar__fill" style="width:60%"></div></div>
+						</div>
+					</div>
+					<div class="file-item__actions">
+						<button class="btn--remove" aria-label="Entfernen" data-id="${ item.dataset.id }">✕</button>
+					</div>
+				`;
+
+				item.querySelector( '.btn--remove' ).addEventListener( 'click', () => removeItem( +item.dataset.id ) );
+
+			}
 
 			function addPendingItem( file, id ) {
 
@@ -768,23 +858,9 @@
 				item.dataset.id = id;
 				item.setAttribute( 'role', 'listitem' );
 
-				item.innerHTML = `
-					<div class="file-item__thumb" aria-hidden="true">…</div>
-					<div class="file-item__info">
-						<div class="file-item__original">${ escapeHtml( file.name ) }</div>
-						<div class="file-item__name">Konvertiere…</div>
-						<div class="file-item__meta">${ formatBytes( file.size ) }
-							<div class="progress-bar" style="width:80px"><div class="progress-bar__fill" style="width:60%"></div></div>
-						</div>
-					</div>
-					<div class="file-item__actions">
-						<button class="btn--remove" aria-label="Entfernen" data-id="${ id }">✕</button>
-					</div>
-				`;
-
 				fileList.appendChild( item );
 
-				item.querySelector( '.btn--remove' ).addEventListener( 'click', () => removeItem( id ) );
+				renderPending( item, file, 'Konvertiere…' );
 
 				return item;
 
@@ -816,16 +892,16 @@
 
 			}
 
-			function markDone( item, originalFile, blob, url, outName, format, origW, origH, outW, outH, notUpscaled ) {
+			function markDone( item, job, blob, url, outName, origW, origH, finalW, finalH, notUpscaled ) {
 
-				const saving = Math.round( ( 1 - blob.size / originalFile.size ) * 100 );
+				const saving = Math.round( ( 1 - blob.size / job.file.size ) * 100 );
 				const savingText = saving > 0
 					? `<span class="size-saving">−${ saving }%</span>`
 					: `<span style="color:var(--text-dim)">${ saving }%</span>`;
 
-				const resized = origW !== outW || origH !== outH;
+				const resized = origW !== finalW || origH !== finalH;
 				const dimText = resized
-					? `<span class="size-arrow">·</span> ${ origW }×${ origH } <span class="size-arrow">→</span> ${ outW }×${ outH }`
+					? `<span class="size-arrow">·</span> ${ origW }×${ origH } <span class="size-arrow">→</span> ${ finalW }×${ finalH }`
 					: `<span class="size-arrow">·</span> ${ origW }×${ origH }`;
 
 				const notUpscaledText = notUpscaled
@@ -840,12 +916,12 @@
 					</div>
 				`;
 
-				item.querySelector( '.file-item__original' ).textContent = originalFile.name;
+				item.querySelector( '.file-item__original' ).textContent = job.file.name;
 
 				item.querySelector( '.file-item__name' ).textContent = outName;
 
 				item.querySelector( '.file-item__meta' ).innerHTML = `
-					${ formatBytes( originalFile.size ) }
+					${ formatBytes( job.file.size ) }
 					<span class="size-arrow">→</span>
 					${ formatBytes( blob.size ) }
 					${ savingText }
@@ -854,7 +930,9 @@
 				`;
 
 				item.querySelector( '.file-item__actions' ).innerHTML = `
-					<span class="file-type-badge">.${ escapeHtml( format.ext ) }</span>
+					<button class="btn--rotate" aria-label="Nach links drehen" title="90° nach links" data-rotate="-90">↺</button>
+					<button class="btn--rotate" aria-label="Nach rechts drehen" title="90° nach rechts" data-rotate="90">↻</button>
+					<span class="file-type-badge">.${ escapeHtml( job.format.ext ) }</span>
 					<a
 						href="${ url }"
 						download="${ escapeHtml( outName ) }"
@@ -864,7 +942,13 @@
 					<button class="btn--remove" aria-label="Entfernen" data-id="${ item.dataset.id }">✕</button>
 				`;
 
-				item.querySelector( '.btn--remove' ).addEventListener( 'click', () => removeItem( +item.dataset.id ) );
+				const id = +item.dataset.id;
+
+				item.querySelectorAll( '.btn--rotate' ).forEach( ( btn ) => {
+					btn.addEventListener( 'click', () => rotateItem( id, parseInt( btn.dataset.rotate, 10 ) ) );
+				});
+
+				item.querySelector( '.btn--remove' ).addEventListener( 'click', () => removeItem( id ) );
 				item.classList.add( 'file-item--done' );
 
 			}

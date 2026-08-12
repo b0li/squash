@@ -14,11 +14,12 @@
 
 Der WebP-Converter konvertiert **immer** nach WebP. Squash lässt das **Zielformat frei wählen**: WebP, JPEG, PNG, AVIF. Alles andere (Drag & Drop, Breiten-Resize, Qualitäts-Slider, lokal ohne Upload, Design) ist identisch.
 
-Drei neue Mechaniken:
+Vier neue Mechaniken:
 
 1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
 2. **AVIF-Feature-Detection** (`detectAvifSupport()`): Beim Init encodiert ein 2×2-Canvas testweise nach `image/avif`. Kommt kein `image/avif`-Blob zurück (Browser kann AVIF nicht encodieren), wird die AVIF-Option per `.remove()` entfernt. → Auf `https://` in Chrome sichtbar, auf `file://` bzw. in Browsern ohne AVIF-Encoder ausgeblendet. Kein Bug, gewolltes Verhalten.
 3. **Qualität an Format gekoppelt** (`applyFormatUiState()`): Bei verlustfreiem Format (PNG, `data-lossy="0"`) wird der Slider `disabled` + Label/Value bekommen `.is-disabled` (Opacity 0.4). Bei lossy aktiv.
+4. **Rotation pro Datei** (`rotateItem()`): Zwei `.btn--rotate`-Buttons (↺ / ↻) pro Zeile drehen in 90°-Schritten. Kein Rotieren des Output-Blobs, sondern **Re-Encode aus dem Original** mit demselben `job` (Format/Qualität/Breite) + neuer `rotation`. Deshalb hält jeder `files`-Record `originalFile` + die Encode-Settings + `rotation`. Bei 90°/270° werden Canvas-Breite/-Höhe getauscht; gedreht wird um das Canvas-Zentrum (`translate` → `rotate` → `drawImage` mit negativem Offset). Der Re-Encode ersetzt den alten `files`-Eintrag (per `id`, alte `url` wird revoked) → kein Duplikat.
 
 ### JPEG-Sonderfall
 JPEG hat keinen Alpha-Kanal. In `processImageBlob()` wird bei `mime === 'image/jpeg'` **vor** `drawImage` der Canvas weiß gefüllt (`ctx.fillStyle = '#ffffff'; ctx.fillRect(...)`), sonst würde Transparenz schwarz. WebP/PNG/AVIF behalten Alpha.
@@ -120,7 +121,7 @@ background: var( --surface );
 Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 - **Thumbnail** (52×52px) mit Hover-Preview-Tooltip (`.file-item__preview`, `position:absolute`, `bottom: calc(100% + 8px)`, `max-width: min(480px, 80vw)`)
 - **Info:** Original-Name (0.75rem, --text-dim) → Output-Name (0.9rem, 600) → Meta (Größen, %, Auflösung)
-- **Actions:** `.file-type-badge` (dynamisch `.webp`/`.jpg`/`.png`/`.avif`) + Download-Button + ✕
+- **Actions:** Rotate ↺ ↻ (`.btn--rotate`) + `.file-type-badge` (dynamisch `.webp`/`.jpg`/`.png`/`.avif`) + Download-Button + ✕
 
 ### Bottom Bar
 `X Dateien` · `68 KB → 23 KB · −65%` (ab 2 Dateien) · Button „Leeren" · Button „Alle als ZIP" (→ `squash.zip`).
@@ -150,10 +151,12 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 | `getSelectedFormat()` | liest `{ mime, ext, lossy }` aus dem Selektor |
 | `applyFormatUiState()` | graut Slider bei lossless (PNG) aus |
 | `detectAvifSupport()` | entfernt AVIF-Option bei fehlendem Encoder |
-| `handleFiles()` | friert quality/width/format beim Drop ein, dispatcht pro Datei |
-| `convertImage()` | HEIC-Weiche, sonst FileReader → `processImageBlob` |
-| `processImageBlob()` | Resize + JPEG-Weiß-Fill + `toBlob` |
-| `markDone()` | rendert Thumbnail, Meta, Badge, Download-Link |
+| `handleFiles()` | baut pro Datei ein `job` (quality/width/format/rotation), dispatcht |
+| `convertJob()` | HEIC-Weiche, sonst FileReader → `processImageBlob` |
+| `processImageBlob()` | Resize + Rotation + JPEG-Weiß-Fill + `toBlob`, ersetzt alten Record |
+| `rotateItem()` | dreht ±90°, re-encodet aus `originalFile` mit gleichen Settings |
+| `renderPending()` | rendert Pending-/„Drehe…"-Zustand einer Zeile |
+| `markDone()` | rendert Thumbnail, Meta, Rotate-/Badge-/Download-Actions |
 
 ---
 
