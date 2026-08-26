@@ -116,6 +116,63 @@
 			min-width: 200px;
 		}
 
+		/* Toggle switch (filename cleanup) */
+
+		.opt {
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			font-size: 0.85rem;
+			color: var( --text-dim );
+			cursor: pointer;
+			user-select: none;
+			white-space: nowrap;
+		}
+
+		.opt input {
+			position: absolute;
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.toggle {
+			width: 38px;
+			height: 22px;
+			border-radius: 11px;
+			background: var( --surface-2 );
+			border: 1px solid var( --border );
+			position: relative;
+			flex-shrink: 0;
+			transition: background 0.15s, border-color 0.15s;
+		}
+
+		.toggle::after {
+			content: '';
+			position: absolute;
+			top: 2px;
+			left: 2px;
+			width: 16px;
+			height: 16px;
+			border-radius: 50%;
+			background: var( --text-dim );
+			transition: transform 0.15s, background 0.15s;
+		}
+
+		.opt input:checked + .toggle {
+			background: var( --accent-dim );
+			border-color: var( --accent );
+		}
+
+		.opt input:checked + .toggle::after {
+			transform: translateX( 16px );
+			background: var( --accent );
+		}
+
+		.opt input:focus-visible + .toggle {
+			outline: 2px solid var( --accent );
+			outline-offset: 2px;
+		}
+
 		.quality-label {
 			font-size: 0.85rem;
 			color: var( --text-dim );
@@ -590,6 +647,12 @@
 			>
 		</div><!-- end /.control-group -->
 
+		<label class="opt">
+			<input type="checkbox" id="cleanNameToggle" checked>
+			<span class="toggle"></span>
+			<span>Dateiname bereinigen</span>
+		</label>
+
 	</div><!-- end /.controls -->
 
 	<div class="file-list" id="fileList" role="list" aria-label="Konvertierte Dateien"></div><!-- end /.file-list -->
@@ -617,6 +680,7 @@
 			const qualityLabel = document.getElementById( 'qualityLabel' );
 			const qualityValue = document.getElementById( 'qualityValue' );
 			const widthInput = document.getElementById( 'widthInput' );
+			const cleanNameToggle = document.getElementById( 'cleanNameToggle' );
 			const fileList = document.getElementById( 'fileList' );
 			const clearBtn = document.getElementById( 'clearBtn' );
 			const downloadAllBtn = document.getElementById( 'downloadAllBtn' );
@@ -743,7 +807,7 @@
 
 					const id = Date.now() + Math.random();
 					const item = addPendingItem( file, id );
-					const job = { id, file, quality, targetWidth, format, rotation: 0 };
+					const job = { id, file, quality, targetWidth, format, rotation: 0, cleanName: cleanNameToggle.checked };
 
 					convertJob( job, item );
 				});
@@ -833,7 +897,9 @@
 							return;
 						}
 
-						const outName = job.file.name.replace( /\.[^.]+$/, '' ) + '.' + job.format.ext;
+						let outBase = job.file.name.replace( /\.[^.]+$/, '' );
+						if ( job.cleanName ) outBase = slugify( outBase );
+						const outName = outBase + '.' + job.format.ext;
 						const url = URL.createObjectURL( blob );
 
 						// Replace any previous encode of this item (e.g. after rotation)
@@ -850,6 +916,7 @@
 							targetWidth: job.targetWidth,
 							format: job.format,
 							rotation: job.rotation,
+							cleanName: job.cleanName,
 							name: outName,
 							ext: job.format.ext,
 							blob,
@@ -892,7 +959,8 @@
 					quality: rec.quality,
 					targetWidth: rec.targetWidth,
 					format: rec.format,
-					rotation
+					rotation,
+					cleanName: rec.cleanName
 				};
 
 				convertJob( job, item );
@@ -919,7 +987,8 @@
 					quality: rec.quality,
 					targetWidth,
 					format: rec.format,
-					rotation: rec.rotation
+					rotation: rec.rotation,
+					cleanName: rec.cleanName
 				};
 
 				convertJob( job, item );
@@ -946,7 +1015,8 @@
 					quality: rec.quality,
 					targetWidth: rec.targetWidth,
 					format,
-					rotation: rec.rotation
+					rotation: rec.rotation,
+					cleanName: rec.cleanName
 				};
 
 				convertJob( job, item );
@@ -1224,6 +1294,39 @@
 					.replace( />/g, '&gt;' )
 					.replace( /"/g, '&quot;' );
 
+			}
+
+			// Transliteration map (non-ASCII → ASCII), umlauts always expanded
+
+			const baseMap = {
+				'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+				'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'å': 'a', 'æ': 'ae',
+				'ç': 'c', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+				'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ñ': 'n',
+				'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ø': 'o', 'œ': 'oe',
+				'ù': 'u', 'ú': 'u', 'û': 'u', 'ý': 'y', 'ÿ': 'y',
+				'š': 's', 'ž': 'z', 'č': 'c', 'ć': 'c', 'đ': 'd', 'ð': 'd', 'þ': 'th'
+			};
+
+			function transliterate( str ) {
+
+				return str.replace( /[^\x00-\x7F]/g, ( ch ) => {
+					const lower = ch.toLowerCase();
+					return baseMap[lower] !== undefined ? baseMap[lower] : '';
+				});
+			}
+
+			// SEO-friendly slug of a base name (no extension) – matches clean-filenames
+
+			function slugify( str ) {
+
+				let name = str.toLowerCase();
+				name = transliterate( name );
+				name = name.replace( /[\s._]+/g, '-' );
+				name = name.replace( /[^a-zA-Z0-9-]/g, '' );
+				name = name.replace( /-+/g, '-' ).replace( /^-+|-+$/g, '' );
+
+				return name || 'bild';
 			}
 
 			detectAvifSupport();

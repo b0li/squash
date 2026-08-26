@@ -14,7 +14,7 @@
 
 Der WebP-Converter konvertiert **immer** nach WebP. Squash lässt das **Zielformat frei wählen**: WebP, JPEG, PNG, AVIF. Alles andere (Drag & Drop, Breiten-Resize, Qualitäts-Slider, lokal ohne Upload, Design) ist identisch.
 
-Vier neue Mechaniken:
+Sieben neue Mechaniken:
 
 1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
 2. **AVIF-Feature-Detection** (`detectAvifSupport()`): Beim Init encodiert ein 2×2-Canvas testweise nach `image/avif`. Kommt kein `image/avif`-Blob zurück (Browser kann AVIF nicht encodieren), wird die AVIF-Option per `.remove()` entfernt. → Auf `https://` in Chrome sichtbar, auf `file://` bzw. in Browsern ohne AVIF-Encoder ausgeblendet. Kein Bug, gewolltes Verhalten.
@@ -22,6 +22,7 @@ Vier neue Mechaniken:
 4. **Rotation pro Datei** (`rotateItem()`): Zwei `.btn--rotate`-Buttons (↺ / ↻, vertikal gestapelt in `.file-item__rotate`) drehen in 90°-Schritten. Kein Rotieren des Output-Blobs, sondern **Re-Encode aus dem Original** mit demselben `job` (Format/Qualität/Breite) + neuer `rotation`. Deshalb hält jeder `files`-Record `originalFile` + die Encode-Settings + `rotation`. Bei 90°/270° werden Canvas-Breite/-Höhe getauscht; gedreht wird um das Canvas-Zentrum (`translate` → `rotate` → `drawImage` mit negativem Offset). Der Re-Encode ersetzt den alten `files`-Eintrag (per `id`, alte `url` wird revoked) → kein Duplikat.
 5. **Individuelle Breite pro Datei** (`resizeItem()`): `.file-item__width`-Zahlenfeld pro Zeile. `change`/Enter → Re-Encode aus dem Original mit neuer `targetWidth` (Format/Qualität/Rotation bleiben). Leer = Originalbreite. Nutzt denselben Ersetz-Mechanismus wie `rotateItem()`. Das globale Breite-Feld ist nur der Default beim Drop.
 6. **Individuelles Ausgabeformat pro Datei** (`reformatItem()`): `.file-item__format`-Select pro Zeile, ersetzt das feste `.file-type-badge`. Die Optionen werden aus dem globalen `formatSelect` gespiegelt (`formatOptionsHtml()`), daher automatisch **inkl. AVIF nur bei Encoder-Support**. `change` → Re-Encode mit neuem Format (Breite/Qualität/Rotation bleiben); Name, Download-Attribut und Extension aktualisieren sich. Helper: `formatFromOption()`, `getFormatByMime()`.
+7. **Dateiname bereinigen** (`slugify()` + `transliterate()`): Toggle `#cleanNameToggle` (Default an) in der Controls-Leiste. Ist er beim Drop aktiv, wird der **Basisname** SEO-konform geslugged — Kleinschreibung + Umlaut-Expansion (ä→ae, ß→ss …) + Leerzeichen/`_`/`.` → `-` + Sonderzeichen raus + Bindestriche zusammenfassen. `solar power system.jpg` → `solar-power-system.webp`. Die Extension kommt sauber aus `format.ext`. Der Slugify-Kern ist 1:1 aus `../clean-filenames/` portiert (dort mit Toggles, hier fest lower+umlaut). State läuft als `cleanName` im `job`/Record mit, damit Re-Encodes (Rotation/Breite/Format) denselben Namen behalten. Original-Name bleibt in `.file-item__original` sichtbar.
 
 ### JPEG-Sonderfall
 JPEG hat keinen Alpha-Kanal. In `processImageBlob()` wird bei `mime === 'image/jpeg'` **vor** `drawImage` der Canvas weiß gefüllt (`ctx.fillStyle = '#ffffff'; ctx.fillRect(...)`), sonst würde Transparenz schwarz. WebP/PNG/AVIF behalten Alpha.
@@ -159,6 +160,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 | `rotateItem()` | dreht ±90°, re-encodet aus `originalFile` mit gleichen Settings |
 | `resizeItem()` | setzt individuelle Breite, re-encodet aus `originalFile` |
 | `reformatItem()` | setzt individuelles Ausgabeformat, re-encodet aus `originalFile` |
+| `slugify()` / `transliterate()` | SEO-Bereinigung des Basisnamens (portiert aus clean-filenames) |
 | `renderPending()` | rendert Pending-/„Drehe…"-Zustand einer Zeile |
 | `markDone()` | rendert Thumbnail, Meta, Rotate-/Badge-/Download-Actions |
 
