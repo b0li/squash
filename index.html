@@ -572,6 +572,33 @@
 			font-weight: 600;
 		}
 
+		.zip-name {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.zip-name input {
+			width: 140px;
+			background: var( --surface-2 );
+			border: 1px solid var( --border );
+			border-radius: 6px;
+			color: var( --text );
+			font-family: inherit;
+			font-size: 0.82rem;
+			padding: 6px 9px;
+			outline: none;
+		}
+
+		.zip-name input:focus {
+			border-color: var( --accent );
+		}
+
+		.zip-name__ext {
+			font-size: 0.82rem;
+			color: var( --text-dim );
+		}
+
 		/* Progress */
 
 		.progress-bar {
@@ -660,6 +687,17 @@
 	<div class="bottom-bar" id="bottomBar" aria-live="polite">
 		<span class="bottom-bar__count" id="bottomCount"></span>
 		<span class="bottom-bar__saving" id="bottomSaving"></span>
+		<div class="zip-name">
+			<input
+				type="text"
+				id="zipNameInput"
+				value="squash"
+				placeholder="squash"
+				aria-label="Name der ZIP-Datei"
+			>
+			<span class="zip-name__ext">.zip</span>
+		</div><!-- end /.zip-name -->
+
 		<button class="btn btn--ghost" id="clearBtn" aria-label="Alle Dateien entfernen">Leeren</button>
 		<button class="btn btn--accent" id="downloadAllBtn" aria-label="Alle als ZIP herunterladen">Alle als ZIP</button>
 	</div><!-- end /.bottom-bar -->
@@ -684,6 +722,7 @@
 			const fileList = document.getElementById( 'fileList' );
 			const clearBtn = document.getElementById( 'clearBtn' );
 			const downloadAllBtn = document.getElementById( 'downloadAllBtn' );
+			const zipNameInput = document.getElementById( 'zipNameInput' );
 			const bottomBar = document.getElementById( 'bottomBar' );
 			const bottomCount = document.getElementById( 'bottomCount' );
 			const bottomSaving = document.getElementById( 'bottomSaving' );
@@ -1209,6 +1248,14 @@
 
 			// ZIP download
 
+			function getZipName() {
+
+				const raw = zipNameInput.value.trim();
+				const base = raw ? slugify( raw ) : 'squash';
+
+				return base + '.zip';
+			}
+
 			downloadAllBtn.addEventListener( 'click', async () => {
 
 				if ( ! files.length ) return;
@@ -1228,7 +1275,7 @@
 					const url = URL.createObjectURL( content );
 					const a = document.createElement( 'a' );
 					a.href = url;
-					a.download = 'squash.zip';
+					a.download = getZipName();
 					a.click();
 					URL.revokeObjectURL( url );
 

@@ -127,7 +127,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 - **Actions:** Rotate ↺ ↻ (`.btn--rotate`) + `.file-type-badge` (dynamisch `.webp`/`.jpg`/`.png`/`.avif`) + Download-Button + ✕
 
 ### Bottom Bar
-`X Dateien` · `68 KB → 23 KB · −65%` (ab 2 Dateien) · Button „Leeren" · Button „Alle als ZIP" (→ `squash.zip`).
+`X Dateien` · `68 KB → 23 KB · −65%` (ab 2 Dateien) · **ZIP-Namensfeld** (`#zipNameInput` + `.zip`-Suffix, Default „squash") · Button „Leeren" · Button „Alle als ZIP". Der eingegebene Name wird über `getZipName()` durch `slugify()` bereinigt (leer → `squash.zip`).
 
 ---
 
@@ -141,7 +141,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 - Qualitäts-Slider (1–100, Default 70) – bei PNG ausgegraut
 - Breite-Input (px, optional) – nur Downscale, nie Upscale; Hinweis „Nicht vergrößert"
 - Dateiliste: Thumbnail + Hover-Preview, Original-Name, Output-Name, Größenvergleich, Auflösung
-- Einzel-Download + Batch-Download als ZIP (`squash.zip`)
+- Einzel-Download + Batch-Download als ZIP (Name frei wählbar, Default `squash.zip`)
 - Bottom Bar: Dateianzahl + Gesamtersparnis (ab 2 Dateien)
 - Fehlerbehandlung: Nicht-Bild-Dateien → Fehlereintrag in der Liste
 
