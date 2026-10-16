@@ -5,7 +5,7 @@
 - **Repo:** https://github.com/b0li/squash
 - **Live:** https://b0li.github.io/squash/
 - **Stack:** Single `index.html` – Vanilla JS, kein Build-Step
-- **CDNs:** JSZip 3.10.1, heic2any 0.0.4 (beide über cdnjs/jsdelivr)
+- **CDNs:** JSZip 3.10.1, heic2any 0.0.4 (cdnjs/jsdelivr), **@jsquash/avif 2.1.1** (esm.sh, lazy via dynamic `import()` nur bei AVIF-Encode)
 - **Herkunft:** Weiterentwicklung des WebP-Converters (`../webp-converter/`) – gleiche Basis, erweitert um freie Output-Format-Wahl.
 
 ---
@@ -17,11 +17,11 @@ Der WebP-Converter konvertiert **immer** nach WebP. Squash lässt das **Zielform
 Sieben neue Mechaniken:
 
 1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
-2. **AVIF-Feature-Detection** (`detectAvifSupport()`): Beim Init encodiert ein 2×2-Canvas testweise nach `image/avif`. Kommt kein `image/avif`-Blob zurück (Browser kann AVIF nicht encodieren), wird die AVIF-Option per `.remove()` entfernt. → Auf `https://` in Chrome sichtbar, auf `file://` bzw. in Browsern ohne AVIF-Encoder ausgeblendet. Kein Bug, gewolltes Verhalten.
+2. **AVIF-Encoding via WASM** (`encodeCanvas()` + `loadAvifEncoder()`): Browser können AVIF **nicht** nativ via `canvas.toBlob` encodieren (nur dekodieren). Daher läuft AVIF über `@jsquash/avif` (libavif als WASM), **lazy** per dynamischem `import('https://esm.sh/@jsquash/avif@2.1.1')` — erst beim ersten AVIF-Encode geladen, einmal gecacht (`avifEncoderPromise`). `encodeCanvas()` ist die zentrale Encode-Weiche: webp/jpeg/png → `canvas.toBlob`, avif → `encode( ctx.getImageData(...), { quality: 0–100 } )` → `Blob`. AVIF ist dadurch **immer** verfügbar (die frühere `detectAvifSupport()`-Ausblendung ist entfernt). Hinweis: esm.sh wird gebraucht, weil der Roh-jsdelivr-Build einen Bare-Import (`wasm-feature-detect`) hat, den der Browser nicht auflöst.
 3. **Qualität an Format gekoppelt** (`applyFormatUiState()`): Bei verlustfreiem Format (PNG, `data-lossy="0"`) wird der Slider `disabled` + Label/Value bekommen `.is-disabled` (Opacity 0.4). Bei lossy aktiv.
 4. **Rotation pro Datei** (`rotateItem()`): Zwei `.btn--rotate`-Buttons (↺ / ↻, vertikal gestapelt in `.file-item__rotate`) drehen in 90°-Schritten. Kein Rotieren des Output-Blobs, sondern **Re-Encode aus dem Original** mit demselben `job` (Format/Qualität/Breite) + neuer `rotation`. Deshalb hält jeder `files`-Record `originalFile` + die Encode-Settings + `rotation`. Bei 90°/270° werden Canvas-Breite/-Höhe getauscht; gedreht wird um das Canvas-Zentrum (`translate` → `rotate` → `drawImage` mit negativem Offset). Der Re-Encode ersetzt den alten `files`-Eintrag (per `id`, alte `url` wird revoked) → kein Duplikat.
 5. **Individuelle Breite pro Datei** (`resizeItem()`): `.file-item__width`-Zahlenfeld pro Zeile. `change`/Enter → Re-Encode aus dem Original mit neuer `targetWidth` (Format/Qualität/Rotation bleiben). Leer = Originalbreite. Nutzt denselben Ersetz-Mechanismus wie `rotateItem()`. Das globale Breite-Feld ist nur der Default beim Drop.
-6. **Individuelles Ausgabeformat pro Datei** (`reformatItem()`): `.file-item__format`-Select pro Zeile, ersetzt das feste `.file-type-badge`. Die Optionen werden aus dem globalen `formatSelect` gespiegelt (`formatOptionsHtml()`), daher automatisch **inkl. AVIF nur bei Encoder-Support**. `change` → Re-Encode mit neuem Format (Breite/Qualität/Rotation bleiben); Name, Download-Attribut und Extension aktualisieren sich. Helper: `formatFromOption()`, `getFormatByMime()`.
+6. **Individuelles Ausgabeformat pro Datei** (`reformatItem()`): `.file-item__format`-Select pro Zeile, ersetzt das feste `.file-type-badge`. Die Optionen werden aus dem globalen `formatSelect` gespiegelt (`formatOptionsHtml()`), daher automatisch inkl. AVIF. `change` → Re-Encode mit neuem Format (Breite/Qualität/Rotation bleiben); Name, Download-Attribut und Extension aktualisieren sich. Helper: `formatFromOption()`, `getFormatByMime()`.
 7. **Dateiname bereinigen** (`slugify()` + `transliterate()`): Toggle `#cleanNameToggle` (Default an) in der Controls-Leiste. Ist er beim Drop aktiv, wird der **Basisname** SEO-konform geslugged — Kleinschreibung + Umlaut-Expansion (ä→ae, ß→ss …) + Leerzeichen/`_`/`.` → `-` + Sonderzeichen raus + Bindestriche zusammenfassen. `solar power system.jpg` → `solar-power-system.webp`. Die Extension kommt sauber aus `format.ext`. Der Slugify-Kern ist 1:1 aus `../clean-filenames/` portiert (dort mit Toggles, hier fest lower+umlaut). State läuft als `cleanName` im `job`/Record mit, damit Re-Encodes (Rotation/Breite/Format) denselben Namen behalten. Original-Name bleibt in `.file-item__original` sichtbar.
 
 ### JPEG-Sonderfall
@@ -137,7 +137,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 - **Input-Formate:** JPG, PNG, GIF, AVIF, BMP, HEIC, HEIF, TIFF, SVG, ICO, WebP
   - HEIC/HEIF via `heic2any` → PNG → Canvas
   - Alle anderen via `FileReader.readAsArrayBuffer` → `Image` → Canvas
-- **Output-Formate:** WebP, JPEG, PNG, AVIF (AVIF nur bei Encoder-Support)
+- **Output-Formate:** WebP, JPEG, PNG (nativ via `canvas.toBlob`), AVIF (via `@jsquash/avif` WASM)
 - Qualitäts-Slider (1–100, Default 70) – bei PNG ausgegraut
 - Breite-Input (px, optional) – nur Downscale, nie Upscale; Hinweis „Nicht vergrößert"
 - Dateiliste: Thumbnail + Hover-Preview, Original-Name, Output-Name, Größenvergleich, Auflösung
@@ -156,7 +156,8 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 | `detectAvifSupport()` | entfernt AVIF-Option bei fehlendem Encoder |
 | `handleFiles()` | baut pro Datei ein `job` (quality/width/format/rotation), dispatcht |
 | `convertJob()` | HEIC-Weiche, sonst FileReader → `processImageBlob` |
-| `processImageBlob()` | Resize + Rotation + JPEG-Weiß-Fill + `toBlob`, ersetzt alten Record |
+| `processImageBlob()` | Resize + Rotation + JPEG-Weiß-Fill, dann `encodeCanvas()`, ersetzt alten Record |
+| `encodeCanvas()` / `loadAvifEncoder()` | Encode-Weiche: toBlob (webp/jpeg/png) bzw. WASM (avif) |
 | `rotateItem()` | dreht ±90°, re-encodet aus `originalFile` mit gleichen Settings |
 | `resizeItem()` | setzt individuelle Breite, re-encodet aus `originalFile` |
 | `reformatItem()` | setzt individuelles Ausgabeformat, re-encodet aus `originalFile` |

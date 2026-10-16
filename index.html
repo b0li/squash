@@ -776,23 +776,6 @@
 
 			formatSelect.addEventListener( 'change', applyFormatUiState );
 
-			// AVIF encoding is only available in some browsers – drop the option if unsupported
-
-			function detectAvifSupport() {
-
-				const testCanvas = document.createElement( 'canvas' );
-				testCanvas.width = 2;
-				testCanvas.height = 2;
-
-				testCanvas.toBlob( ( blob ) => {
-
-					if ( ! blob || blob.type !== 'image/avif' ) {
-						const avifOption = formatSelect.querySelector( 'option[value="image/avif"]' );
-						if ( avifOption ) avifOption.remove();
-					}
-				}, 'image/avif' );
-			}
-
 			// Quality slider
 
 			qualitySlider.addEventListener( 'input', () => {
@@ -880,6 +863,38 @@
 
 			}
 
+			// Lazy-load the AVIF WASM encoder (browsers can't encode AVIF via canvas.toBlob)
+
+			let avifEncoderPromise = null;
+
+			function loadAvifEncoder() {
+
+				if ( ! avifEncoderPromise ) {
+					avifEncoderPromise = import( 'https://esm.sh/@jsquash/avif@2.1.1' )
+						.then( ( mod ) => mod.encode || mod.default );
+				}
+
+				return avifEncoderPromise;
+			}
+
+			// Encode a canvas to a Blob – native toBlob for webp/jpeg/png, WASM for avif
+
+			function encodeCanvas( canvas, ctx, format, quality ) {
+
+				if ( format.mime === 'image/avif' ) {
+					return loadAvifEncoder().then( ( encode ) => {
+						const imageData = ctx.getImageData( 0, 0, canvas.width, canvas.height );
+						return encode( imageData, { quality: Math.round( quality * 100 ) } );
+					}).then( ( buffer ) => new Blob( [buffer], { type: 'image/avif' } ) );
+				}
+
+				const encodeQuality = format.lossy ? quality : undefined;
+
+				return new Promise( ( resolve ) => {
+					canvas.toBlob( resolve, format.mime, encodeQuality );
+				});
+			}
+
 			function processImageBlob( sourceBlob, job, item ) {
 
 				const blobUrl = URL.createObjectURL( sourceBlob );
@@ -927,9 +942,7 @@
 					ctx.rotate( job.rotation * Math.PI / 180 );
 					ctx.drawImage( img, -outW / 2, -outH / 2, outW, outH );
 
-					const encodeQuality = job.format.lossy ? job.quality : undefined;
-
-					canvas.toBlob( ( blob ) => {
+					encodeCanvas( canvas, ctx, job.format, job.quality ).then( ( blob ) => {
 
 						if ( ! blob ) {
 							markError( item, 'Konvertierung fehlgeschlagen' );
@@ -966,7 +979,7 @@
 						markDone( item, job, blob, url, outName, origW, origH, finalW, finalH, notUpscaled );
 						updateSummary();
 
-					}, job.format.mime, encodeQuality );
+					}).catch( () => markError( item, 'Konvertierung fehlgeschlagen' ) );
 
 				};
 
@@ -1376,7 +1389,6 @@
 				return name || 'bild';
 			}
 
-			detectAvifSupport();
 			applyFormatUiState();
 			updateActions();
 
