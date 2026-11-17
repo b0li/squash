@@ -503,6 +503,26 @@
 			color: var( --accent );
 		}
 
+		.btn--crop {
+			background: transparent;
+			border: none;
+			color: var( --text );
+			cursor: pointer;
+			padding: 2px 4px;
+			line-height: 0;
+			display: flex;
+			align-items: center;
+			transition: color 0.15s;
+		}
+
+		.btn--crop:hover {
+			color: var( --accent );
+		}
+
+		.btn--crop.is-active {
+			color: var( --accent );
+		}
+
 		.file-item__width {
 			width: 62px;
 			background: var( --surface-2 );
@@ -618,6 +638,176 @@
 			width: 0%;
 		}
 
+		/* Crop modal */
+
+		.crop-modal {
+			position: fixed;
+			inset: 0;
+			z-index: 100;
+			display: none;
+			align-items: center;
+			justify-content: center;
+			background: rgba( 10, 12, 16, 0.85 );
+			padding: 24px;
+		}
+
+		.crop-modal--open {
+			display: flex;
+		}
+
+		.crop-modal__inner {
+			background: var( --surface );
+			border: 1px solid var( --border );
+			border-radius: var( --radius );
+			padding: 20px;
+			max-width: 92vw;
+			max-height: 92vh;
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		.crop-modal__title {
+			font-size: 0.95rem;
+			font-weight: 600;
+			color: var( --text );
+		}
+
+		.crop-modal__title span {
+			color: var( --text-dim );
+			font-weight: 400;
+		}
+
+		.crop-stage {
+			position: relative;
+			display: inline-block;
+			line-height: 0;
+			margin: 0 auto;
+			touch-action: none;
+			user-select: none;
+			max-width: 100%;
+		}
+
+		.crop-stage img {
+			display: block;
+			max-width: min( 80vw, 900px );
+			max-height: 62vh;
+			width: auto;
+			height: auto;
+		}
+
+		.crop-box {
+			position: absolute;
+			border: 1px solid var( --accent );
+			box-shadow: 0 0 0 9999px rgba( 10, 12, 16, 0.55 );
+			cursor: move;
+			box-sizing: border-box;
+		}
+
+		.crop-box::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background-image:
+				linear-gradient( var( --accent-dim ) 0 0 ), linear-gradient( var( --accent-dim ) 0 0 ),
+				linear-gradient( var( --accent-dim ) 0 0 ), linear-gradient( var( --accent-dim ) 0 0 );
+			background-repeat: no-repeat;
+			background-size: 100% 1px, 100% 1px, 1px 100%, 1px 100%;
+			background-position: 0 33.33%, 0 66.66%, 33.33% 0, 66.66% 0;
+			pointer-events: none;
+			opacity: 0.6;
+		}
+
+		.crop-handle {
+			position: absolute;
+			width: 14px;
+			height: 14px;
+			background: var( --accent );
+			border: 2px solid var( --bg );
+			border-radius: 50%;
+			box-sizing: border-box;
+		}
+
+		.crop-handle[data-dir="nw"] { top: -7px; left: -7px; cursor: nwse-resize; }
+		.crop-handle[data-dir="ne"] { top: -7px; right: -7px; cursor: nesw-resize; }
+		.crop-handle[data-dir="sw"] { bottom: -7px; left: -7px; cursor: nesw-resize; }
+		.crop-handle[data-dir="se"] { bottom: -7px; right: -7px; cursor: nwse-resize; }
+		.crop-handle[data-dir="n"] { top: -7px; left: 50%; margin-left: -7px; cursor: ns-resize; }
+		.crop-handle[data-dir="s"] { bottom: -7px; left: 50%; margin-left: -7px; cursor: ns-resize; }
+		.crop-handle[data-dir="w"] { left: -7px; top: 50%; margin-top: -7px; cursor: ew-resize; }
+		.crop-handle[data-dir="e"] { right: -7px; top: 50%; margin-top: -7px; cursor: ew-resize; }
+
+		.crop-controls {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.crop-ratios {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+		}
+
+		.crop-chip {
+			background: var( --surface-2 );
+			border: 1px solid var( --border );
+			border-radius: 6px;
+			color: var( --text-dim );
+			font-family: inherit;
+			font-size: 0.8rem;
+			padding: 5px 11px;
+			cursor: pointer;
+			transition: color 0.15s, border-color 0.15s, background 0.15s;
+		}
+
+		.crop-chip:hover {
+			color: var( --text );
+		}
+
+		.crop-chip--active {
+			background: var( --accent-dim );
+			border-color: var( --accent );
+			color: var( --accent );
+		}
+
+		.crop-exact {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.8rem;
+			color: var( --text-dim );
+		}
+
+		.crop-exact input {
+			width: 68px;
+			background: var( --surface-2 );
+			border: 1px solid var( --border );
+			border-radius: 6px;
+			color: var( --text );
+			font-family: inherit;
+			font-size: 0.8rem;
+			padding: 5px 7px;
+			outline: none;
+			-moz-appearance: textfield;
+		}
+
+		.crop-exact input::-webkit-outer-spin-button,
+		.crop-exact input::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+		}
+
+		.crop-exact input:focus {
+			border-color: var( --accent );
+		}
+
+		.crop-actions {
+			display: flex;
+			gap: 10px;
+			margin-left: auto;
+		}
+
 		/* Google Fonts */
 
 		@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;600;700&display=swap');
@@ -701,6 +891,47 @@
 		<button class="btn btn--ghost" id="clearBtn" aria-label="Alle Dateien entfernen">Leeren</button>
 		<button class="btn btn--accent" id="downloadAllBtn" aria-label="Alle als ZIP herunterladen">Alle als ZIP</button>
 	</div><!-- end /.bottom-bar -->
+
+	<div class="crop-modal" id="cropModal" role="dialog" aria-modal="true" aria-label="Bild zuschneiden">
+
+		<div class="crop-modal__inner">
+
+			<div class="crop-modal__title" id="cropTitle">Zuschneiden</div>
+
+			<div class="crop-stage" id="cropStage">
+				<img id="cropImage" alt="">
+			</div><!-- end /.crop-stage -->
+
+			<div class="crop-controls">
+
+				<div class="crop-ratios" id="cropRatios">
+					<button class="crop-chip" data-ratio="free">Frei</button>
+					<button class="crop-chip" data-ratio="orig">Original</button>
+					<button class="crop-chip" data-ratio="1">1:1</button>
+					<button class="crop-chip" data-ratio="1.3333">4:3</button>
+					<button class="crop-chip" data-ratio="1.5">3:2</button>
+					<button class="crop-chip" data-ratio="1.7778">16:9</button>
+				</div><!-- end /.crop-ratios -->
+
+				<label class="crop-exact">
+					Feste Größe
+					<input type="number" id="cropExactW" min="1" max="20000" placeholder="B">
+					×
+					<input type="number" id="cropExactH" min="1" max="20000" placeholder="H">
+					px
+				</label>
+
+				<div class="crop-actions">
+					<button class="btn btn--ghost" id="cropResetBtn">Zurücksetzen</button>
+					<button class="btn btn--ghost" id="cropCancelBtn">Abbrechen</button>
+					<button class="btn btn--accent" id="cropApplyBtn">Übernehmen</button>
+				</div><!-- end /.crop-actions -->
+
+			</div><!-- end /.crop-controls -->
+
+		</div><!-- end /.crop-modal__inner -->
+
+	</div><!-- end /.crop-modal -->
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -829,7 +1060,7 @@
 
 					const id = Date.now() + Math.random();
 					const item = addPendingItem( file, id );
-					const job = { id, file, quality, targetWidth, format, rotation: 0, cleanName: cleanNameToggle.checked };
+					const job = { id, file, quality, targetWidth, format, rotation: 0, cleanName: cleanNameToggle.checked, crop: null };
 
 					convertJob( job, item );
 				});
@@ -907,14 +1138,28 @@
 					const origW = img.naturalWidth;
 					const origH = img.naturalHeight;
 
-					let outW = origW;
-					let outH = origH;
+					// Crop source region (fractions of the original); default = full image
+					let sx = 0, sy = 0, sw = origW, sh = origH;
+
+					if ( job.crop ) {
+						sx = Math.round( job.crop.x * origW );
+						sy = Math.round( job.crop.y * origH );
+						sw = Math.max( 1, Math.round( job.crop.w * origW ) );
+						sh = Math.max( 1, Math.round( job.crop.h * origH ) );
+					}
+
+					let outW = sw;
+					let outH = sh;
 					let notUpscaled = false;
 
-					if ( job.targetWidth > 0 ) {
-						if ( job.targetWidth < origW ) {
+					if ( job.crop && job.crop.exact ) {
+						// Fixed output size – may upscale, the user asked for exactly this
+						outW = job.crop.exact.w;
+						outH = job.crop.exact.h;
+					} else if ( job.targetWidth > 0 ) {
+						if ( job.targetWidth < sw ) {
 							outW = job.targetWidth;
-							outH = Math.round( origH * ( job.targetWidth / origW ) );
+							outH = Math.round( sh * ( job.targetWidth / sw ) );
 						} else {
 							notUpscaled = true;
 						}
@@ -937,10 +1182,10 @@
 						ctx.fillRect( 0, 0, finalW, finalH );
 					}
 
-					// Rotate around the canvas center, then draw the scaled image
+					// Rotate around the canvas center, then draw the cropped + scaled image
 					ctx.translate( finalW / 2, finalH / 2 );
 					ctx.rotate( job.rotation * Math.PI / 180 );
-					ctx.drawImage( img, -outW / 2, -outH / 2, outW, outH );
+					ctx.drawImage( img, sx, sy, sw, sh, -outW / 2, -outH / 2, outW, outH );
 
 					encodeCanvas( canvas, ctx, job.format, job.quality ).then( ( blob ) => {
 
@@ -969,6 +1214,7 @@
 							format: job.format,
 							rotation: job.rotation,
 							cleanName: job.cleanName,
+							crop: job.crop,
 							name: outName,
 							ext: job.format.ext,
 							blob,
@@ -1012,7 +1258,8 @@
 					targetWidth: rec.targetWidth,
 					format: rec.format,
 					rotation,
-					cleanName: rec.cleanName
+					cleanName: rec.cleanName,
+					crop: rec.crop
 				};
 
 				convertJob( job, item );
@@ -1040,7 +1287,8 @@
 					targetWidth,
 					format: rec.format,
 					rotation: rec.rotation,
-					cleanName: rec.cleanName
+					cleanName: rec.cleanName,
+					crop: rec.crop
 				};
 
 				convertJob( job, item );
@@ -1068,7 +1316,34 @@
 					targetWidth: rec.targetWidth,
 					format,
 					rotation: rec.rotation,
-					cleanName: rec.cleanName
+					cleanName: rec.cleanName,
+					crop: rec.crop
+				};
+
+				convertJob( job, item );
+
+			}
+
+			function applyCrop( id, crop ) {
+
+				const rec = files.find( f => f.id === id );
+				if ( ! rec ) return;
+
+				const item = document.querySelector( `.file-item[data-id="${ id }"]` );
+				if ( ! item ) return;
+
+				renderPending( item, rec.originalFile, 'Zuschneiden…' );
+				item.classList.remove( 'file-item--done' );
+
+				const job = {
+					id,
+					file: rec.originalFile,
+					quality: rec.quality,
+					targetWidth: rec.targetWidth,
+					format: rec.format,
+					rotation: rec.rotation,
+					cleanName: rec.cleanName,
+					crop
 				};
 
 				convertJob( job, item );
@@ -1180,6 +1455,9 @@
 						<button class="btn--rotate" aria-label="Nach links drehen" title="90° nach links" data-rotate="-90">↺</button>
 						<button class="btn--rotate" aria-label="Nach rechts drehen" title="90° nach rechts" data-rotate="90">↻</button>
 					</div>
+					<button class="btn--crop${ job.crop ? ' is-active' : '' }" aria-label="Zuschneiden" title="Zuschneiden">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/></svg>
+					</button>
 					<input
 						type="number"
 						class="file-item__width"
@@ -1205,6 +1483,8 @@
 				item.querySelectorAll( '.btn--rotate' ).forEach( ( btn ) => {
 					btn.addEventListener( 'click', () => rotateItem( id, parseInt( btn.dataset.rotate, 10 ) ) );
 				});
+
+				item.querySelector( '.btn--crop' ).addEventListener( 'click', () => openCrop( id ) );
 
 				const widthField = item.querySelector( '.file-item__width' );
 				widthField.addEventListener( 'change', () => resizeItem( id, widthField.value ) );
@@ -1388,6 +1668,351 @@
 
 				return name || 'bild';
 			}
+
+			function clamp( v, min, max ) {
+				return v < min ? min : ( v > max ? max : v );
+			}
+
+			// ---- Crop modal ----
+
+			const cropModal = document.getElementById( 'cropModal' );
+			const cropStage = document.getElementById( 'cropStage' );
+			const cropImage = document.getElementById( 'cropImage' );
+			const cropTitle = document.getElementById( 'cropTitle' );
+			const cropRatios = document.getElementById( 'cropRatios' );
+			const cropExactW = document.getElementById( 'cropExactW' );
+			const cropExactH = document.getElementById( 'cropExactH' );
+			const cropResetBtn = document.getElementById( 'cropResetBtn' );
+			const cropCancelBtn = document.getElementById( 'cropCancelBtn' );
+			const cropApplyBtn = document.getElementById( 'cropApplyBtn' );
+
+			let cropCtx = null;
+			let cropBoxEl = null;
+			let cropDrag = null;
+
+			function openCrop( id ) {
+
+				const rec = files.find( f => f.id === id );
+				if ( ! rec ) return;
+
+				const file = rec.originalFile;
+				const isHeic = /\.(heic|heif)$/i.test( file.name ) || file.type === 'image/heic' || file.type === 'image/heif';
+
+				const show = ( blob ) => {
+					const url = URL.createObjectURL( blob );
+					cropCtx = { id, imgUrl: url };
+					cropImage.onload = () => initCropStage( id, rec );
+					cropImage.src = url;
+					cropModal.classList.add( 'crop-modal--open' );
+				};
+
+				if ( isHeic ) {
+					heic2any({ blob: file, toType: 'image/png' })
+						.then( show )
+						.catch( () => show( file ) );
+					return;
+				}
+
+				show( file );
+
+			}
+
+			function initCropStage( id, rec ) {
+
+				const stageW = cropImage.clientWidth;
+				const stageH = cropImage.clientHeight;
+
+				cropCtx.id = id;
+				cropCtx.stageW = stageW;
+				cropCtx.stageH = stageH;
+				cropCtx.ratio = null;
+
+				cropTitle.innerHTML = `Zuschneiden <span>· ${ escapeHtml( rec.originalFile.name ) } · ${ cropImage.naturalWidth }×${ cropImage.naturalHeight } px</span>`;
+
+				cropExactW.value = '';
+				cropExactH.value = '';
+
+				let box;
+
+				if ( rec.crop ) {
+					box = {
+						x: rec.crop.x * stageW,
+						y: rec.crop.y * stageH,
+						w: rec.crop.w * stageW,
+						h: rec.crop.h * stageH
+					};
+
+					if ( rec.crop.exact ) {
+						cropExactW.value = rec.crop.exact.w;
+						cropExactH.value = rec.crop.exact.h;
+						cropCtx.ratio = rec.crop.exact.w / rec.crop.exact.h;
+					}
+				} else {
+					const w = stageW * 0.8;
+					const h = stageH * 0.8;
+					box = { x: ( stageW - w ) / 2, y: ( stageH - h ) / 2, w, h };
+				}
+
+				cropCtx.box = box;
+
+				setActiveRatioChip();
+				renderCropBox();
+
+			}
+
+			function renderCropBox() {
+
+				if ( ! cropBoxEl ) {
+					cropBoxEl = document.createElement( 'div' );
+					cropBoxEl.className = 'crop-box';
+					cropBoxEl.innerHTML = ['nw','ne','sw','se','n','s','w','e']
+						.map( d => `<div class="crop-handle" data-dir="${ d }"></div>` ).join( '' );
+					cropStage.appendChild( cropBoxEl );
+					cropBoxEl.addEventListener( 'pointerdown', onCropPointerDown );
+				}
+
+				const b = cropCtx.box;
+				cropBoxEl.style.left = b.x + 'px';
+				cropBoxEl.style.top = b.y + 'px';
+				cropBoxEl.style.width = b.w + 'px';
+				cropBoxEl.style.height = b.h + 'px';
+
+				const locked = cropCtx.ratio != null;
+				cropBoxEl.querySelectorAll( '.crop-handle' ).forEach( ( h ) => {
+					const edge = ['n','s','w','e'].includes( h.dataset.dir );
+					h.style.display = ( locked && edge ) ? 'none' : 'block';
+				});
+
+			}
+
+			function onCropPointerDown( e ) {
+
+				const handle = e.target.closest( '.crop-handle' );
+
+				cropDrag = {
+					dir: handle ? handle.dataset.dir : 'move',
+					startX: e.clientX,
+					startY: e.clientY,
+					box: Object.assign( {}, cropCtx.box )
+				};
+
+				e.preventDefault();
+				window.addEventListener( 'pointermove', onCropPointerMove );
+				window.addEventListener( 'pointerup', onCropPointerUp );
+
+			}
+
+			function onCropPointerMove( e ) {
+
+				if ( ! cropDrag ) return;
+
+				const dx = e.clientX - cropDrag.startX;
+				const dy = e.clientY - cropDrag.startY;
+
+				if ( cropDrag.dir === 'move' ) {
+					moveCropBox( dx, dy, cropDrag.box );
+				} else {
+					resizeCropBox( cropDrag.dir, dx, dy, cropDrag.box );
+				}
+
+				renderCropBox();
+
+			}
+
+			function onCropPointerUp() {
+
+				cropDrag = null;
+				window.removeEventListener( 'pointermove', onCropPointerMove );
+				window.removeEventListener( 'pointerup', onCropPointerUp );
+
+			}
+
+			function moveCropBox( dx, dy, start ) {
+
+				const x = clamp( start.x + dx, 0, cropCtx.stageW - start.w );
+				const y = clamp( start.y + dy, 0, cropCtx.stageH - start.h );
+
+				cropCtx.box = { x, y, w: start.w, h: start.h };
+
+			}
+
+			function resizeCropBox( dir, dx, dy, start ) {
+
+				const sW = cropCtx.stageW;
+				const sH = cropCtx.stageH;
+				const minS = 24;
+				const ratio = cropCtx.ratio;
+
+				if ( ratio ) {
+
+					// Corner-only resize, anchored to the opposite corner
+					const anchorX = dir.includes( 'w' ) ? ( start.x + start.w ) : start.x;
+					const anchorY = dir.includes( 'n' ) ? ( start.y + start.h ) : start.y;
+
+					const signX = dir.includes( 'w' ) ? -1 : 1;
+					let width = Math.max( minS, start.w + signX * dx );
+					let height = width / ratio;
+
+					const maxW = dir.includes( 'w' ) ? anchorX : ( sW - anchorX );
+					const maxH = dir.includes( 'n' ) ? anchorY : ( sH - anchorY );
+
+					if ( width > maxW ) { width = maxW; height = width / ratio; }
+					if ( height > maxH ) { height = maxH; width = height * ratio; }
+
+					width = Math.max( minS, width );
+					height = Math.max( minS, height );
+
+					const nx = dir.includes( 'w' ) ? anchorX - width : anchorX;
+					const ny = dir.includes( 'n' ) ? anchorY - height : anchorY;
+
+					cropCtx.box = { x: nx, y: ny, w: width, h: height };
+					return;
+				}
+
+				let left = start.x;
+				let top = start.y;
+				let right = start.x + start.w;
+				let bottom = start.y + start.h;
+
+				if ( dir.includes( 'e' ) ) right = clamp( start.x + start.w + dx, start.x + minS, sW );
+				if ( dir.includes( 'w' ) ) left = clamp( start.x + dx, 0, start.x + start.w - minS );
+				if ( dir.includes( 's' ) ) bottom = clamp( start.y + start.h + dy, start.y + minS, sH );
+				if ( dir.includes( 'n' ) ) top = clamp( start.y + dy, 0, start.y + start.h - minS );
+
+				cropCtx.box = { x: left, y: top, w: right - left, h: bottom - top };
+
+			}
+
+			function fitBoxToRatio() {
+
+				if ( cropCtx.ratio == null ) return;
+
+				const sW = cropCtx.stageW;
+				const sH = cropCtx.stageH;
+				const ratio = cropCtx.ratio;
+				const b = cropCtx.box;
+				const cx = b.x + b.w / 2;
+				const cy = b.y + b.h / 2;
+
+				let w = b.w;
+				let h = w / ratio;
+
+				if ( w > sW ) { w = sW; h = w / ratio; }
+				if ( h > sH ) { h = sH; w = h * ratio; }
+
+				const x = clamp( cx - w / 2, 0, sW - w );
+				const y = clamp( cy - h / 2, 0, sH - h );
+
+				cropCtx.box = { x, y, w, h };
+
+			}
+
+			function setActiveRatioChip() {
+
+				const cur = cropCtx.ratio;
+				const origRatio = cropImage.naturalWidth / cropImage.naturalHeight;
+
+				cropRatios.querySelectorAll( '.crop-chip' ).forEach( ( c ) => {
+					const r = c.dataset.ratio;
+					let match = false;
+
+					if ( r === 'free' ) match = cur == null;
+					else if ( r === 'orig' ) match = cur != null && Math.abs( cur - origRatio ) < 0.01;
+					else match = cur != null && Math.abs( cur - parseFloat( r ) ) < 0.01;
+
+					c.classList.toggle( 'crop-chip--active', match );
+				});
+
+			}
+
+			function closeCrop() {
+
+				cropModal.classList.remove( 'crop-modal--open' );
+
+				if ( cropCtx && cropCtx.imgUrl ) URL.revokeObjectURL( cropCtx.imgUrl );
+				cropImage.src = '';
+
+			}
+
+			cropRatios.addEventListener( 'click', ( e ) => {
+
+				const chip = e.target.closest( '.crop-chip' );
+				if ( ! chip ) return;
+
+				const r = chip.dataset.ratio;
+
+				cropExactW.value = '';
+				cropExactH.value = '';
+
+				if ( r === 'free' ) cropCtx.ratio = null;
+				else if ( r === 'orig' ) cropCtx.ratio = cropImage.naturalWidth / cropImage.naturalHeight;
+				else cropCtx.ratio = parseFloat( r );
+
+				fitBoxToRatio();
+				setActiveRatioChip();
+				renderCropBox();
+
+			});
+
+			function onExactChange() {
+
+				const w = parseInt( cropExactW.value, 10 ) || 0;
+				const h = parseInt( cropExactH.value, 10 ) || 0;
+
+				if ( w > 0 && h > 0 ) {
+					cropCtx.ratio = w / h;
+					fitBoxToRatio();
+				}
+
+				setActiveRatioChip();
+				renderCropBox();
+
+			}
+
+			cropExactW.addEventListener( 'input', onExactChange );
+			cropExactH.addEventListener( 'input', onExactChange );
+
+			cropApplyBtn.addEventListener( 'click', () => {
+
+				const b = cropCtx.box;
+				const id = cropCtx.id;
+
+				const crop = {
+					x: clamp( b.x / cropCtx.stageW, 0, 1 ),
+					y: clamp( b.y / cropCtx.stageH, 0, 1 ),
+					w: clamp( b.w / cropCtx.stageW, 0, 1 ),
+					h: clamp( b.h / cropCtx.stageH, 0, 1 )
+				};
+
+				const ew = parseInt( cropExactW.value, 10 ) || 0;
+				const eh = parseInt( cropExactH.value, 10 ) || 0;
+				if ( ew > 0 && eh > 0 ) crop.exact = { w: ew, h: eh };
+
+				// Near-full selection without a fixed size counts as "no crop"
+				const full = crop.x < 0.002 && crop.y < 0.002 && crop.w > 0.998 && crop.h > 0.998;
+
+				closeCrop();
+				applyCrop( id, ( full && ! crop.exact ) ? null : crop );
+
+			});
+
+			cropResetBtn.addEventListener( 'click', () => {
+
+				const id = cropCtx.id;
+				closeCrop();
+				applyCrop( id, null );
+
+			});
+
+			cropCancelBtn.addEventListener( 'click', closeCrop );
+
+			cropModal.addEventListener( 'pointerdown', ( e ) => {
+				if ( e.target === cropModal ) closeCrop();
+			});
+
+			document.addEventListener( 'keydown', ( e ) => {
+				if ( e.key === 'Escape' && cropModal.classList.contains( 'crop-modal--open' ) ) closeCrop();
+			});
 
 			applyFormatUiState();
 			updateActions();

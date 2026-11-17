@@ -14,7 +14,7 @@
 
 Der WebP-Converter konvertiert **immer** nach WebP. Squash lässt das **Zielformat frei wählen**: WebP, JPEG, PNG, AVIF. Alles andere (Drag & Drop, Breiten-Resize, Qualitäts-Slider, lokal ohne Upload, Design) ist identisch.
 
-Sieben neue Mechaniken:
+Acht neue Mechaniken:
 
 1. **Format-Selektor** (`<select id="formatSelect">`) in der Controls-Leiste. Jede Option trägt `data-ext` + `data-lossy`.
 2. **AVIF-Encoding via WASM** (`encodeCanvas()` + `loadAvifEncoder()`): Browser können AVIF **nicht** nativ via `canvas.toBlob` encodieren (nur dekodieren). Daher läuft AVIF über `@jsquash/avif` (libavif als WASM), **lazy** per dynamischem `import('https://esm.sh/@jsquash/avif@2.1.1')` — erst beim ersten AVIF-Encode geladen, einmal gecacht (`avifEncoderPromise`). `encodeCanvas()` ist die zentrale Encode-Weiche: webp/jpeg/png → `canvas.toBlob`, avif → `encode( ctx.getImageData(...), { quality: 0–100 } )` → `Blob`. AVIF ist dadurch **immer** verfügbar (die frühere `detectAvifSupport()`-Ausblendung ist entfernt). Hinweis: esm.sh wird gebraucht, weil der Roh-jsdelivr-Build einen Bare-Import (`wasm-feature-detect`) hat, den der Browser nicht auflöst.
@@ -23,6 +23,7 @@ Sieben neue Mechaniken:
 5. **Individuelle Breite pro Datei** (`resizeItem()`): `.file-item__width`-Zahlenfeld pro Zeile. `change`/Enter → Re-Encode aus dem Original mit neuer `targetWidth` (Format/Qualität/Rotation bleiben). Leer = Originalbreite. Nutzt denselben Ersetz-Mechanismus wie `rotateItem()`. Das globale Breite-Feld ist nur der Default beim Drop.
 6. **Individuelles Ausgabeformat pro Datei** (`reformatItem()`): `.file-item__format`-Select pro Zeile, ersetzt das feste `.file-type-badge`. Die Optionen werden aus dem globalen `formatSelect` gespiegelt (`formatOptionsHtml()`), daher automatisch inkl. AVIF. `change` → Re-Encode mit neuem Format (Breite/Qualität/Rotation bleiben); Name, Download-Attribut und Extension aktualisieren sich. Helper: `formatFromOption()`, `getFormatByMime()`.
 7. **Dateiname bereinigen** (`slugify()` + `transliterate()`): Toggle `#cleanNameToggle` (Default an) in der Controls-Leiste. Ist er beim Drop aktiv, wird der **Basisname** SEO-konform geslugged — Kleinschreibung + Umlaut-Expansion (ä→ae, ß→ss …) + Leerzeichen/`_`/`.` → `-` + Sonderzeichen raus + Bindestriche zusammenfassen. `solar power system.jpg` → `solar-power-system.webp`. Die Extension kommt sauber aus `format.ext`. Der Slugify-Kern ist 1:1 aus `../clean-filenames/` portiert (dort mit Toggles, hier fest lower+umlaut). State läuft als `cleanName` im `job`/Record mit, damit Re-Encodes (Rotation/Breite/Format) denselben Namen behalten. Original-Name bleibt in `.file-item__original` sichtbar.
+8. **Zuschneiden pro Datei** (Crop-Modal, `openCrop()` + `applyCrop()`): Crop-Button (`.btn--crop`, Feather-Icon, `.is-active` wenn Crop gesetzt) öffnet ein Modal (`#cropModal`) mit dem Originalbild + interaktiver Crop-Box (8 Pointer-Griffe, verschieben + resizen, Vanilla Pointer-Events). **Ratio-Presets** (Frei/Original/1:1/4:3/3:2/16:9 — bei gesperrtem Ratio nur Eck-Griffe) und optional **feste Ausgabegröße** B×H px. Das Crop-Rechteck wird **auflösungsunabhängig als Fraktionen** `{x,y,w,h}` (0–1 des Originals) gespeichert, optional `exact:{w,h}`. „Übernehmen" → `applyCrop()` → Re-Encode (gleicher Ersetz-Mechanismus). Pipeline-Reihenfolge in `processImageBlob()`: **Crop (9-arg `drawImage` Source-Rect) → Rotation → Resize (Breite bzw. `exact`) → Encode**. `exact` darf hochskalieren und übersteuert das Breite-Feld. HEIC wird fürs Preview via `heic2any` nach PNG gewandelt. Crop läuft als `crop` im `job`/Record mit (bleibt bei Rotation/Breite/Format erhalten). Modal zeigt das **unrotierte** Original — Rotation wird danach angewandt.
 
 ### JPEG-Sonderfall
 JPEG hat keinen Alpha-Kanal. In `processImageBlob()` wird bei `mime === 'image/jpeg'` **vor** `drawImage` der Canvas weiß gefüllt (`ctx.fillStyle = '#ffffff'; ctx.fillRect(...)`), sonst würde Transparenz schwarz. WebP/PNG/AVIF behalten Alpha.
@@ -141,6 +142,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 - Qualitäts-Slider (1–100, Default 70) – bei PNG ausgegraut
 - Breite-Input (px, optional) – nur Downscale, nie Upscale; Hinweis „Nicht vergrößert"
 - Dateiliste: Thumbnail + Hover-Preview, Original-Name, Output-Name, Größenvergleich, Auflösung
+- Zuschneiden pro Bild: Modal mit Ratio-Presets + fester Ausgabegröße, interaktive Crop-Box
 - Einzel-Download + Batch-Download als ZIP (Name frei wählbar, Default `squash.zip`)
 - Bottom Bar: Dateianzahl + Gesamtersparnis (ab 2 Dateien)
 - Fehlerbehandlung: Nicht-Bild-Dateien → Fehlereintrag in der Liste
@@ -161,6 +163,7 @@ Grid `52px 1fr auto`, gap 14px. Aufbau pro Zeile:
 | `rotateItem()` | dreht ±90°, re-encodet aus `originalFile` mit gleichen Settings |
 | `resizeItem()` | setzt individuelle Breite, re-encodet aus `originalFile` |
 | `reformatItem()` | setzt individuelles Ausgabeformat, re-encodet aus `originalFile` |
+| `openCrop()` / `applyCrop()` | Crop-Modal öffnen bzw. Crop-Rechteck setzen + re-encoden |
 | `slugify()` / `transliterate()` | SEO-Bereinigung des Basisnamens (portiert aus clean-filenames) |
 | `renderPending()` | rendert Pending-/„Drehe…"-Zustand einer Zeile |
 | `markDone()` | rendert Thumbnail, Meta, Rotate-/Badge-/Download-Actions |
